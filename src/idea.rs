@@ -1,45 +1,44 @@
-const CHUNK_SIZE: usize = 8;
-use useful_macro::*;
-
 pub fn encrypt(payload: &[u8], key: &[u8]) -> Vec<u8> {
-    let encrypted = idea_crypto::encrypt(payload, key);
+    let encrypted = if payload.len() != 8 {
+        idea_crypto::encrypt(payload, key)
+    } else {
+        let mut new_payload = Vec::with_capacity(payload.len() + 1);
+        new_payload.extend_from_slice(payload);
+        new_payload.push(0);
+        idea_crypto::encrypt(new_payload.as_slice(), key)
+    };
 
-    let mut result = Vec::with_capacity(encrypted.len() * CHUNK_SIZE);
-
+    let mut result = Vec::new();
     for chunk in encrypted {
+        result.push(chunk.len() as u8);
         result.extend(chunk);
     }
 
     return result;
 }
 
-pub fn decrypt(payload: &[u8], key: &[u8]) -> Vec<u8> {
-    let mut enc = payload
-        .chunks(8)
-        .into_iter()
-        .map(|s| s.to_vec())
-        .collect::<Vec<Vec<u8>>>();
+pub fn decrypt(data: Vec<u8>, key: &[u8]) -> Vec<u8> {
+    let mut to_decrypt = Vec::new();
+    let mut i = 0;
 
-    let count_push: u8 = vec_element_clone!(&enc[enc.len() - 1], &enc[enc.len() - 1].len() - 1);
+    while i < data.len() {
+        let size = data[i] as usize;
+        i += 1;
 
-    enc.remove(enc.len() - 1);
-    let mut last = vec_element_clone!(enc, enc.len() - 1);
-    last.push(count_push);
-    enc.remove(enc.len() - 1);
-    enc.push(last);
-
-    let decrypted = idea_crypto::decrypt(enc, key);
-
-    let mut size = 0;
-
-    for item in &decrypted {
-        size += item.len()
+        to_decrypt.push(data[i..(i + size)].to_vec());
+        i += size;
     }
 
-    let mut result = Vec::with_capacity(size);
+    let decrypted = idea_crypto::decrypt(to_decrypt, key);
 
-    for item in decrypted {
-        result.extend(item)
+    let mut result = Vec::new();
+
+    for chunk in decrypted {
+        result.extend(chunk)
+    }
+
+    if result.len() == 9 && result[result.len() - 1] == 0u8 {
+        result.pop();
     }
 
     result
@@ -54,9 +53,20 @@ mod test {
         let src = vec![1u8, 2u8, 3u8, 4u8];
         let encrypted = encrypt(&src, "Key".as_bytes());
 
-        let decrypted = decrypt(&encrypted, "Key".as_bytes());
+        let decrypted = decrypt(encrypted, "Key".as_bytes());
 
         assert_eq!(&src, &decrypted);
+    }
+
+    #[test]
+    fn test_8() {
+        let src = "01234567";
+        let key = "1234567890123456";
+        let encrypted = encrypt(src.as_bytes(), key.as_bytes());
+
+        let decrypted = decrypt(encrypted, key.as_bytes());
+
+        assert_eq!(src, std::str::from_utf8(&decrypted).unwrap());
     }
 
     #[test]
