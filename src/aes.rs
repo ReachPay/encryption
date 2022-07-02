@@ -74,4 +74,19 @@ mod test {
 
         assert!(decrypted.is_err());
     }
+
+    #[test]
+    pub fn encrypt_two_times_the_same_result() {
+        let my_key = b"This is the key!This is the key!This is 16 bytes";
+
+        let plaintext = b"My Phrase";
+        let key = AesKey::new(my_key);
+
+        // Encryption
+        let encrypted1 = super::encrypt(&key, plaintext);
+
+        let encrypted2 = super::encrypt(&key, plaintext);
+
+        assert_eq!(encrypted1, encrypted2);
+    }
 }
