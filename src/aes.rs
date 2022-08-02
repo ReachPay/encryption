@@ -21,20 +21,20 @@ impl AesKey {
     pub fn get_cipher(&self) -> libaes::Cipher {
         libaes::Cipher::new_256(&self.key)
     }
-}
 
-pub fn encrypt(aes_key: &AesKey, data: &[u8]) -> Vec<u8> {
-    let cipher = aes_key.get_cipher();
-    cipher.cbc_encrypt(&aes_key.iv, data)
-}
+    pub fn encrypt(&self, data: &[u8]) -> Vec<u8> {
+        let cipher = self.get_cipher();
+        cipher.cbc_encrypt(&self.iv, data)
+    }
 
-pub fn decrypt(aes_key: &AesKey, data: &[u8]) -> Result<Vec<u8>, String> {
-    let cipher = aes_key.get_cipher();
+    pub fn decrypt(&self, data: &[u8]) -> Result<Vec<u8>, String> {
+        let cipher = self.get_cipher();
 
-    let result = std::panic::catch_unwind(|| cipher.cbc_decrypt(&aes_key.iv, data));
-    match result {
-        Ok(result) => Ok(result),
-        Err(err) => Err(format!("AesKey: decryption failed: {:?}", err)),
+        let result = std::panic::catch_unwind(|| cipher.cbc_decrypt(&self.iv, data));
+        match result {
+            Ok(result) => Ok(result),
+            Err(err) => Err(format!("AesKey: decryption failed: {:?}", err)),
+        }
     }
 }
 
@@ -51,10 +51,10 @@ mod test {
         let key = AesKey::new(my_key);
 
         // Encryption
-        let encrypted = super::encrypt(&key, plaintext);
+        let encrypted = key.encrypt(plaintext);
 
         // Decryption
-        let decrypted = super::decrypt(&key, &encrypted[..]).unwrap();
+        let decrypted = key.decrypt(&encrypted[..]).unwrap();
 
         assert_eq!(decrypted, plaintext);
     }
@@ -67,10 +67,10 @@ mod test {
         let key = AesKey::new(my_key);
 
         // Encryption
-        let encrypted = super::encrypt(&key, plaintext);
+        let encrypted = key.encrypt(plaintext);
 
         // Decryption
-        let decrypted = super::decrypt(&key, &encrypted[..5]);
+        let decrypted = key.decrypt(&encrypted[..5]);
 
         assert!(decrypted.is_err());
     }
@@ -83,9 +83,9 @@ mod test {
         let key = AesKey::new(my_key);
 
         // Encryption
-        let encrypted1 = super::encrypt(&key, plaintext);
+        let encrypted1 = key.encrypt(plaintext);
 
-        let encrypted2 = super::encrypt(&key, plaintext);
+        let encrypted2 = key.encrypt(plaintext);
 
         assert_eq!(encrypted1, encrypted2);
     }
